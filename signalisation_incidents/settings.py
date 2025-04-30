@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -43,6 +45,15 @@ INSTALLED_APPS = [
     'drf_yasg',
 
 ]
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),   # par exemple 1 heure
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),       # token refresh valable 7 jours
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 AUTH_USER_MODEL = 'incidents.Utilisateur'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
