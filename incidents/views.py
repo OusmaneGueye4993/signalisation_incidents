@@ -1,5 +1,4 @@
 from django.shortcuts import render
-from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -7,7 +6,7 @@ from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Incident
+from .models import Incident, Utilisateur
 from .pagination import ArticlePageNumberPagination
 from .serializers import *
 from .permission import IsCitoyen, IsAdmin
@@ -17,12 +16,12 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 # --------------------------------------------------
-#               INSCRIPTION UTILISATEUR
+#              INSCRIPTION UTILISATEUR
 # --------------------------------------------------
 @swagger_auto_schema(
     method='post',
     operation_id="Inscription",
-    operation_description="Créer un nouveau compte utilisateur.",
+    operation_description="Créer un nouveau compte utilisateur. Le rôle par défaut est 'citoyen'.",
     request_body=UtilisateurSerializer,
     responses={201: UtilisateurSerializer()}
 )
@@ -40,7 +39,7 @@ def register(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # --------------------------------------------------
-#                   LOGIN UTILISATEUR
+#              CONNEXION UTILISATEUR
 # --------------------------------------------------
 @swagger_auto_schema(
     method='post',
@@ -86,7 +85,7 @@ def login(request):
     return Response({'error': 'Identifiants invalides'}, status=status.HTTP_401_UNAUTHORIZED)
 
 # --------------------------------------------------
-#            AJOUTER UN INCIDENT PAR CITOYEN
+#         AJOUTER UN INCIDENT PAR CITOYEN
 # --------------------------------------------------
 @swagger_auto_schema(
     method='post',
@@ -129,7 +128,7 @@ def mes_incidents(request):
     return paginator.get_paginated_response(serializer.data)
 
 # --------------------------------------------------
-#         MODIFIER L'ÉTAT D'UN INCIDENT (ADMIN)
+#   MODIFIER L'ÉTAT D'UN INCIDENT (ADMIN)
 # --------------------------------------------------
 @swagger_auto_schema(
     method='patch',
@@ -171,7 +170,7 @@ def modifier_etat_incident(request, incident_id):
     return Response({"message": "État mis à jour avec succès"})
 
 # --------------------------------------------------
-#        AFFICHER TOUS LES INCIDENTS (ADMIN)
+#     AFFICHER TOUS LES INCIDENTS (ADMIN)
 # --------------------------------------------------
 @swagger_auto_schema(
     method='get',
@@ -190,3 +189,86 @@ def tous_les_incidents(request):
     result_page = paginator.paginate_queryset(incidents, request)
     serializer = IncidentSerializer(result_page, many=True)
     return paginator.get_paginated_response(serializer.data)
+
+# --------------------------------------------------
+#       LISTER TOUS LES UTILISATEURS (ADMIN)
+# --------------------------------------------------
+@swagger_auto_schema(
+    method='get',
+    operation_id="Liste des utilisateurs",
+    operation_description="Liste de tous les utilisateurs (admin uniquement).",
+    responses={200: UtilisateurSerializer(many=True)}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def liste_utilisateurs(request):
+    """
+    Retourne la liste complète des utilisateurs (admin uniquement).
+    """
+    utilisateurs = Utilisateur.objects.all()
+    serializer = UtilisateurSerializer(utilisateurs, many=True)
+    return Response(serializer.data)
+
+# --------------------------------------------------
+#     MODIFIER LE RÔLE D'UN UTILISATEUR (ADMIN)
+# --------------------------------------------------
+@swagger_auto_schema(
+    method='patch',
+    operation_id="Modifier rôle utilisateur",
+    operation_description="Permet à un admin de changer le rôle d’un utilisateur.",
+    manual_parameters=[
+        openapi.Parameter('user_id', openapi.IN_PATH, description="ID de l'utilisateur", type=openapi.TYPE_INTEGER)
+    ],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'role': openapi.Schema(type=openapi.TYPE_STRING)
+        },
+        required=['role']
+    ),
+    responses={200: openapi.Response(description="Rôle modifié avec succès")}
+)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def modifier_role_utilisateur(request, user_id):
+    """
+    Permet à un administrateur de modifier le rôle d'un utilisateur.
+    """
+    try:
+        user = Utilisateur.objects.get(id=user_id)
+    except Utilisateur.DoesNotExist:
+        return Response({"error": "Utilisateur non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+
+    nouveau_role = request.data.get('role')
+    if nouveau_role not in ['admin', 'citoyen']:
+        return Response({"error": "Rôle invalide"}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.role = nouveau_role
+    user.save()
+    return Response({"message": "Rôle mis à jour avec succès"})
+
+# --------------------------------------------------
+#         SUPPRIMER UN UTILISATEUR (ADMIN)
+# --------------------------------------------------
+@swagger_auto_schema(
+    method='delete',
+    operation_id="Supprimer un utilisateur",
+    operation_description="Permet à un administrateur de supprimer un utilisateur par ID.",
+    manual_parameters=[
+        openapi.Parameter('user_id', openapi.IN_PATH, description="ID de l'utilisateur à supprimer", type=openapi.TYPE_INTEGER)
+    ],
+    responses={200: openapi.Response(description="Utilisateur supprimé avec succès")}
+)
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def deleteUser(request, user_id):
+    """
+    Supprime un utilisateur (admin uniquement).
+    """
+    try:
+        user = Utilisateur.objects.get(id=user_id)
+    except Utilisateur.DoesNotExist:
+        return Response({"error": "Utilisateur non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+
+    user.delete()
+    return Response({"message": "Utilisateur supprimé avec succès"})

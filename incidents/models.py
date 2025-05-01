@@ -41,7 +41,7 @@ class Utilisateur(AbstractUser):
         ('citoyen', 'Citoyen'),
         ('admin', 'Admin'),
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='citoyen')
 
     groups = models.ManyToManyField(
         Group,

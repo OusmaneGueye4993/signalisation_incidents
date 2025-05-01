@@ -5,18 +5,18 @@ from .models import Utilisateur, Incident
 class UtilisateurSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
-        fields = ('username', 'password', 'role')
+        fields = ('id', 'username', 'password', 'role')
         extra_kwargs = {
             'password': {'write_only': True}
         }
 
     def create(self, validated_data):
+        role = validated_data.get('role', 'citoyen')  # Par défaut "citoyen"
         user = Utilisateur.objects.create_user(
-            username=validated_data['username'],
-            password=validated_data['password'],
-           
-            role=validated_data.get('role')
-        )
+        username=validated_data['username'],
+        password=validated_data['password'],
+        
+    )
         user.is_active = True  
         user.save()
         return user
